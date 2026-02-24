@@ -14,9 +14,9 @@
       --text:#f3eaff;
       --muted:#c9a9ff;
 
-      --neon:#a855f7;        /* main purple */
-      --neon2:#c084fc;       /* lighter glow */
-      --neonRGB: 168,85,247; /* purple rgb for rgba() */
+      --neon:#a855f7;
+      --neon2:#c084fc;
+      --neonRGB: 168,85,247;
       --neonRGB2: 192,132,252;
 
       --good:#4dff88;
@@ -127,9 +127,7 @@
       border-color: rgba(var(--neonRGB2),.85);
       box-shadow: 0 0 0 3px rgba(var(--neonRGB),.16), var(--shadow);
     }
-    button:active{
-      transform: translateY(1px);
-    }
+    button:active{ transform: translateY(1px); }
 
     .reqKills{
       font-size:22px;
@@ -184,7 +182,7 @@
 
       <div class="note">
         Map Total = (Kills + Placement + Bonus) ÷ Divider.
-        Placement: 1st 20, 2nd 10, 3rd 9, 4th 8, 5th 7.
+        Placement: 1st 20, 2nd 10, 3rd 9, 4th 8, 5th 7, 6+ 0.
         Win Bonus (1st only): 40→+5, 50→+10, 60→+15, 70→+20, 80→+25, 90→+30.
       </div>
       <div class="note dim">Saved on this device for <b>1 hour</b> (refresh safe).</div>
@@ -254,7 +252,7 @@
           <div class="dim" style="font-size:12px; color:var(--muted);">Maps</div>
           <div style="font-size:13px; color:var(--muted);">Maps update when you click out (tab/click away). Reset map is at the bottom.</div>
         </div>
-        <span class="pill">Placement default: None</span>
+        <span class="pill">Placement default: 6+</span>
       </div>
 
       <table style="margin-top:10px;">
@@ -278,9 +276,11 @@
 
   <script>
     // ---------- CONFIG ----------
-    const STORAGE_KEY = "ugl_quads_score_helper_v1";
+    const STORAGE_KEY = "ugl_quads_score_helper_v2"; // bumped so defaults apply fresh
     const TTL_MS = 60 * 60 * 1000; // 1 hour
-    const placementPts = { 1:20, 2:10, 3:9, 4:8, 5:7 };
+
+    // placement points, including 6+ bucket as 0
+    const placementPts = { 1:20, 2:10, 3:9, 4:8, 5:7, "6+": 0 };
 
     function winBonus(k){
       if (k >= 90) return 30;
@@ -297,7 +297,6 @@
       return Number(n).toFixed(d);
     }
 
-    // Reset map is last
     const maps = [
       { key:"m1", label:"Map 1" },
       { key:"m2", label:"Map 2" },
@@ -313,7 +312,9 @@
       target: 130,
       maps: {}
     };
-    maps.forEach(m => state.maps[m.key] = { placement:null, kills:0 });
+
+    // Default placement is 6+
+    maps.forEach(m => state.maps[m.key] = { placement:"6+", kills:0 });
 
     // ---------- STORAGE (1 hour TTL) ----------
     function saveState(){
@@ -341,7 +342,12 @@
           for (const m of maps){
             const sm = s.maps[m.key];
             if (!sm) continue;
-            state.maps[m.key].placement = (sm.placement === null || sm.placement === undefined) ? null : Number(sm.placement);
+
+            // placement can be number 1..5 or string "6+"
+            if (sm.placement === "6+") state.maps[m.key].placement = "6+";
+            else if (sm.placement === null || sm.placement === undefined) state.maps[m.key].placement = "6+";
+            else state.maps[m.key].placement = Number(sm.placement);
+
             state.maps[m.key].kills = Math.max(0, Math.floor(Number(sm.kills || 0)));
           }
         }
@@ -359,12 +365,12 @@
     function placementSelect(key){
       return `
         <select data-key="${key}" data-field="placement">
-          <option value="">None</option>
           <option value="1">1st</option>
           <option value="2">2nd</option>
           <option value="3">3rd</option>
           <option value="4">4th</option>
           <option value="5">5th</option>
+          <option value="6+">6+</option>
         </select>
       `;
     }
@@ -388,7 +394,7 @@
       mapsBody.querySelectorAll("select").forEach(sel => {
         const key = sel.dataset.key;
         const p = state.maps[key].placement;
-        sel.value = p ? String(p) : "";
+        sel.value = (p === "6+") ? "6+" : String(p);
       });
       mapsBody.querySelectorAll("input[data-field='kills']").forEach(inp => {
         const key = inp.dataset.key;
@@ -399,7 +405,7 @@
       mapsBody.querySelectorAll("select").forEach(sel => {
         sel.addEventListener("change", () => {
           const key = sel.dataset.key;
-          state.maps[key].placement = sel.value ? Number(sel.value) : null;
+          state.maps[key].placement = (sel.value === "6+") ? "6+" : Number(sel.value);
           saveState();
           recalc();
         });
@@ -413,20 +419,26 @@
           saveState();
           recalc();
         };
-        inp.addEventListener("blur", apply);     // click out
-        inp.addEventListener("change", apply);   // some mobile browsers
+        inp.addEventListener("blur", apply);
+        inp.addEventListener("change", apply);
       });
     }
 
     // ---------- SCORING ----------
     function mapScoreRaw(map){
-      const p = map.placement;
+      const p = map.placement; // 1..5 or "6+"
       const k = map.kills || 0;
-      if (!p) return { kills:k, placePts:0, bonus:0, raw:0, played:false };
+
+      // Consider a map "played" if it has any kills OR placement explicitly set (always set in this version)
+      const played = (k > 0) || (p !== null && p !== undefined);
+
       const placePts = placementPts[p] || 0;
+
+      // win bonus only on true 1st place
       const bonus = (p === 1) ? winBonus(k) : 0;
+
       const raw = k + placePts + bonus;
-      return { kills:k, placePts, bonus, raw, played:true };
+      return { kills:k, placePts, bonus, raw, played };
     }
 
     function totalFromRaw(raw, divider){
@@ -434,7 +446,6 @@
       return raw / divider;
     }
 
-    // Base candidates are Map1-5; reset can replace lowest if higher
     function computeBest5(divider){
       const baseKeys = ["m1","m2","m3","m4","m5"];
       const base = baseKeys.map(k => {
@@ -460,12 +471,13 @@
       }
 
       const totalBest5 = base.reduce((sum, x) => sum + (x.total || 0), 0);
-      const remainingMaps = base.filter(x => !x.played).length;
+
+      // Remaining maps = those with 0 kills (since placement is always set)
+      const remainingMaps = base.filter(x => x.kills === 0).length;
 
       return { counted: base, totalBest5, usedReset, remainingMaps };
     }
 
-    // Kills needed for ONE map to reach required RAW points, given placement
     function minKillsForRaw(placement, requiredRaw){
       if (requiredRaw <= 0) return 0;
       for (let k=0; k<=250; k++){
@@ -482,7 +494,6 @@
       const divider = state.divider;
       const target = state.target;
 
-      // Per-map breakdown table
       for (const m of maps){
         const s = mapScoreRaw(state.maps[m.key]);
         const total = totalFromRaw(s.raw, divider) || 0;
@@ -490,15 +501,10 @@
         const bdEl = document.getElementById("bd_" + m.key);
         const tEl  = document.getElementById("tot_" + m.key);
 
-        if (!state.maps[m.key].placement){
-          bdEl.textContent = "—";
-        }else{
-          bdEl.textContent = `Kills ${s.kills} + Place ${s.placePts} + Bonus ${s.bonus} = Raw ${s.raw}`;
-        }
+        bdEl.textContent = `Kills ${s.kills} + Place ${s.placePts} + Bonus ${s.bonus} = Raw ${s.raw}`;
         tEl.textContent = fmt(total, 2);
       }
 
-      // Best 5
       const best = computeBest5(divider);
       document.getElementById("best5Total").textContent = fmt(best.totalBest5, 2);
       document.getElementById("bigTotal").textContent = fmt(best.totalBest5, 2);
@@ -508,13 +514,11 @@
       remEl.textContent = fmt(remaining, 2);
       remEl.className = "big mono " + (remaining <= 0 ? "good" : "");
 
-      // Reset pill
       document.getElementById("resetStatus").textContent = best.usedReset ? "Reset map is counted" : "Reset not used";
 
-      // Counted table
       countedBody.innerHTML = best.counted.map(x => {
         const p = state.maps[x.key]?.placement;
-        const placeText = p ? (p + (p===1?"st":p===2?"nd":p===3?"rd":"th")) : "None";
+        const placeText = (p === "6+") ? "6+" : (p ? (p + (p===1?"st":p===2?"nd":p===3?"rd":"th")) : "—");
         return `
           <tr>
             <td><b>${x.label}</b></td>
@@ -527,14 +531,13 @@
         `;
       }).join("");
 
-      // Requirements (simple)
       const reqPill = document.getElementById("reqPill");
 
       if (!(divider > 0)){
         reqPill.textContent = "Enter divider";
-        reqBody.innerHTML = [1,2,3,4,5].map(p => `
+        reqBody.innerHTML = [1,2,3,4,5,"6+"].map(p => `
           <tr>
-            <td><b>${p}${p===1?"st":p===2?"nd":p===3?"rd":"th"}</b></td>
+            <td><b>${p === "6+" ? "6+" : (p + (p===1?"st":p===2?"nd":p===3?"rd":"th"))}</b></td>
             <td class="reqKills mono">—</td>
           </tr>
         `).join("");
@@ -543,9 +546,9 @@
 
       if (remaining <= 0){
         reqPill.textContent = "Target reached";
-        reqBody.innerHTML = [1,2,3,4,5].map(p => `
+        reqBody.innerHTML = [1,2,3,4,5,"6+"].map(p => `
           <tr>
-            <td><b>${p}${p===1?"st":p===2?"nd":p===3?"rd":"th"}</b></td>
+            <td><b>${p === "6+" ? "6+" : (p + (p===1?"st":p===2?"nd":p===3?"rd":"th"))}</b></td>
             <td class="reqKills mono">0</td>
           </tr>
         `).join("");
@@ -553,12 +556,11 @@
       }
 
       const remainingMaps = best.remainingMaps;
-
       if (remainingMaps === 0){
         reqPill.textContent = "No remaining counted maps";
-        reqBody.innerHTML = [1,2,3,4,5].map(p => `
+        reqBody.innerHTML = [1,2,3,4,5,"6+"].map(p => `
           <tr>
-            <td><b>${p}${p===1?"st":p===2?"nd":p===3?"rd":"th"}</b></td>
+            <td><b>${p === "6+" ? "6+" : (p + (p===1?"st":p===2?"nd":p===3?"rd":"th"))}</b></td>
             <td class="reqKills mono">—</td>
           </tr>
         `).join("");
@@ -567,16 +569,16 @@
 
       reqPill.textContent = `${fmt(remaining,2)} points left`;
 
-      // average needed per remaining counted map
-      const neededTotalPerMap = remaining / remainingMaps; // "Total" units (after dividing by divider)
+      const neededTotalPerMap = remaining / remainingMaps;
       const neededRawPerMap = neededTotalPerMap * divider;
 
-      reqBody.innerHTML = [1,2,3,4,5].map(p => {
+      reqBody.innerHTML = [1,2,3,4,5,"6+"].map(p => {
         const k = minKillsForRaw(p, neededRawPerMap);
         const killsText = (k === null) ? "250+" : String(k);
+        const label = (p === "6+") ? "6+" : (p + (p===1?"st":p===2?"nd":p===3?"rd":"th"));
         return `
           <tr>
-            <td><b>${p}${p===1?"st":p===2?"nd":p===3?"rd":"th"}</b></td>
+            <td><b>${label}</b></td>
             <td class="reqKills mono">${killsText}</td>
           </tr>
         `;
@@ -584,7 +586,6 @@
     }
 
     // ---------- BUTTONS ----------
-    // Update button: ONLY applies divider/target
     document.getElementById("updateBtn").addEventListener("click", () => {
       const div = Number(document.getElementById("divider").value || 0);
       const tar = Number(document.getElementById("target").value || 0);
@@ -598,11 +599,11 @@
 
     document.getElementById("resetMapsBtn").addEventListener("click", () => {
       for (const m of maps){
-        state.maps[m.key].placement = null;
+        state.maps[m.key].placement = "6+";
         state.maps[m.key].kills = 0;
       }
 
-      mapsBody.querySelectorAll("select").forEach(s => s.value = "");
+      mapsBody.querySelectorAll("select").forEach(s => s.value = "6+");
       mapsBody.querySelectorAll("input[data-field='kills']").forEach(i => i.value = 0);
 
       saveState();
@@ -617,7 +618,7 @@
 
     buildMapRows();
     recalc();
-    saveState(); // refresh TTL on open
+    saveState();
   </script>
 </body>
 </html>
