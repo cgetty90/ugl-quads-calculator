@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>UGL QUADS SCORE HELPER</title>
+  <style>
+    :root{
+      --bg:#070204;
+      --card:#0f0508;
+      --card2:#12060a;
+      --line:#3a0b12;
+      --line2:#5a0f1c;
+      --text:#ffe8ee;
+      --muted:#ffb3c3;
+      --neon:#ff2a55;
+      --neon2:#ff476d;
+      --good:#4dff88;
+      --bad:#ff6b6b;
+      --shadow: 0 0 18px rgba(255,42,85,.18), 0 0 42px rgba(255,42,85,.10);
+      --shadow2: 0 0 12px rgba(255,42,85,.22);
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(900px 500px at 20% 0%, rgba(255,42,85,.12), transparent 60%),
+        radial-gradient(700px 400px at 90% 10%, rgba(255,71,109,.10), transparent 60%),
+        radial-gradient(900px 700px at 50% 100%, rgba(255,42,85,.08), transparent 60%),
+        var(--bg);
+    }
+
+    header{ padding:24px 16px 10px; max-width:1100px; margin:0 auto; }
+    h1{
+      margin:0 0 6px;
+      font-size:22px;
+      letter-spacing:.6px;
+      text-shadow: 0 0 14px rgba(255,42,85,.25);
+    }
+    .sub{ color:var(--muted); font-size:13px; line-height:1.45; }
+
+    main{ max-width:1100px; margin:0 auto; padding:12px 16px 36px; display:grid; gap:14px; }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,42,85,.06), transparent 55%), var(--card);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px;
+      box-shadow: var(--shadow);
+    }
+
+    .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+    .field{ display:flex; flex-direction:column; gap:6px; min-width:190px; }
+
+    label{ font-size:12px; color:var(--muted); }
+
+    input, select{
+      background: rgba(0,0,0,.35);
+      color:var(--text);
+      border:1px solid var(--line2);
+      border-radius:12px;
+      padding:10px 10px;
+      outline:none;
+      box-shadow: inset 0 0 0 1px rgba(255,42,85,.06);
+    }
+    input:focus, select:focus{
+      border-color: var(--neon);
+      box-shadow: 0 0 0 3px rgba(255,42,85,.16), var(--shadow2);
+    }
+
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+    @media (max-width: 900px){ .grid2{ grid-template-columns:1fr; } }
+
+    table{ width:100%; border-collapse:collapse; overflow:hidden; border-radius:12px; }
+    th, td{ padding:10px 10px; border-bottom:1px solid rgba(255,42,85,.18); text-align:left; font-size:13px; }
+    th{ color:var(--muted); font-weight:700; letter-spacing:.2px; }
+    tr:last-child td{ border-bottom:none; }
+
+    .pill{
+      display:inline-block;
+      padding:4px 10px;
+      border:1px solid rgba(255,42,85,.35);
+      border-radius:999px;
+      font-size:12px;
+      color:var(--muted);
+      background: rgba(255,42,85,.06);
+      box-shadow: 0 0 18px rgba(255,42,85,.10);
+    }
+
+    .split{ display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    .right{ text-align:right; }
+    .mono{ font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+    .big{ font-size:22px; font-weight:800; }
+    .bigger{ font-size:32px; font-weight:900; letter-spacing:.3px; text-shadow: 0 0 16px rgba(255,42,85,.20); }
+
+    .note{ font-size:12px; color:var(--muted); line-height:1.5; margin-top:8px; opacity:.95; }
+
+    .btnrow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    button{
+      background: linear-gradient(180deg, rgba(255,42,85,.16), rgba(255,42,85,.06));
+      color:var(--text);
+      border:1px solid rgba(255,42,85,.55);
+      border-radius:12px;
+      padding:10px 12px;
+      cursor:pointer;
+      box-shadow: var(--shadow2);
+      font-weight:700;
+      letter-spacing:.2px;
+    }
+    button:hover{ border-color: var(--neon2); box-shadow: 0 0 0 3px rgba(255,42,85,.12), var(--shadow); }
+    button:active{ transform: translateY(1px); }
+
+    .reqKills{
+      font-size:22px;
+      font-weight:900;
+      color: var(--text);
+      text-shadow: 0 0 14px rgba(255,42,85,.22);
+    }
+
+    .dim{ opacity:.85; }
+    .good{ color:var(--good); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>UGL QUADS SCORE HELPER</h1>
+    <div class="sub">
+      5 maps + 1 reset map. Reset replaces the <b>lowest</b> counted map if higher.
+      Win bonus applies to <b>1st place only</b> (does not stack).
+    </div>
+  </header>
+
+  <main>
+    <!-- Settings -->
+    <section class="card">
+      <div class="row">
+        <div class="field">
+          <label for="divider">Team Divider</label>
+          <input id="divider" type="number" step="0.01" min="0.01" value="3.6" />
+        </div>
+        <div class="field">
+          <label for="target">Target Score</label>
+          <input id="target" type="number" step="0.01" min="0" value="130" />
+        </div>
+        <div class="field" style="min-width:280px;">
+          <label>Summary</label>
+          <div class="split">
+            <div>
+              <div class="dim" style="font-size:12px; color:var(--muted);">Best 5 Total</div>
+              <div id="best5Total" class="big mono">0.00</div>
+            </div>
+            <div class="right">
+              <div class="dim" style="font-size:12px; color:var(--muted);">Remaining to Target</div>
+              <div id="remaining" class="big mono">130.00</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btnrow">
+        <button id="updateBtn" title="Applies Divider + Target changes">Update Divider / Target</button>
+      </div>
+
+      <div class="note">
+        Map Total = (Kills + Placement + Bonus) ÷ Divider.
+        Placement: 1st 20, 2nd 10, 3rd 9, 4th 8, 5th 7.
+        Win Bonus (1st only): 40→+5, 50→+10, 60→+15, 70→+20, 80→+25, 90→+30.
+      </div>
+      <div class="note dim">Saved on this device for <b>1 hour</b> (refresh safe).</div>
+    </section>
+
+    <div class="grid2">
+      <!-- Requirements -->
+      <section class="card">
+        <div class="split">
+          <div>
+            <div class="dim" style="font-size:12px; color:var(--muted);">Requirements</div>
+            <div style="font-size:13px; color:var(--muted);">Kills per map needed (average across remaining counted maps)</div>
+          </div>
+          <div class="right">
+            <span class="pill" id="reqPill">—</span>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width:120px;">Placement</th>
+              <th>Kills Needed</th>
+            </tr>
+          </thead>
+          <tbody id="reqBody"></tbody>
+        </table>
+      </section>
+
+      <!-- Counted maps -->
+      <section class="card">
+        <div class="split">
+          <div>
+            <div class="dim" style="font-size:12px; color:var(--muted);">Counted Maps (Best 5)</div>
+            <div style="font-size:13px; color:var(--muted);">Which 5 maps are being counted right now</div>
+          </div>
+          <div class="right">
+            <span class="pill" id="resetStatus">Reset not used</span>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Map</th>
+              <th>Kills</th>
+              <th>Place</th>
+              <th>Bonus</th>
+              <th>Raw</th>
+              <th class="right">Total</th>
+            </tr>
+          </thead>
+          <tbody id="countedBody"></tbody>
+        </table>
+
+        <div style="margin-top:12px;">
+          <div class="dim" style="font-size:12px; color:var(--muted);">Current Total Points (Best 5)</div>
+          <div id="bigTotal" class="bigger mono">0.00</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Maps -->
+    <section class="card">
+      <div class="split">
+        <div>
+          <div class="dim" style="font-size:12px; color:var(--muted);">Maps</div>
+          <div style="font-size:13px; color:var(--muted);">Maps update when you click out (tab/click away). Reset map is at the bottom.</div>
+        </div>
+        <span class="pill">Placement default: None</span>
+      </div>
+
+      <table style="margin-top:10px;">
+        <thead>
+          <tr>
+            <th style="width:140px;">Map</th>
+            <th style="width:160px;">Placement</th>
+            <th style="width:140px;">Kills</th>
+            <th>Breakdown</th>
+            <th class="right" style="width:140px;">Total</th>
+          </tr>
+        </thead>
+        <tbody id="mapsBody"></tbody>
+      </table>
+
+      <div class="btnrow">
+        <button id="resetMapsBtn" title="Clears Map 1-5 + Reset">Reset Maps</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ---------- CONFIG ----------
+    const STORAGE_KEY = "ugl_quads_score_helper_v1";
+    const TTL_MS = 60 * 60 * 1000; // 1 hour
+    const placementPts = { 1:20, 2:10, 3:9, 4:8, 5:7 };
+
+    function winBonus(k){
+      if (k >= 90) return 30;
+      if (k >= 80) return 25;
+      if (k >= 70) return 20;
+      if (k >= 60) return 15;
+      if (k >= 50) return 10;
+      if (k >= 40) return 5;
+      return 0;
+    }
+
+    function fmt(n, d=2){
+      if (!isFinite(n)) return "—";
+      return Number(n).toFixed(d);
+    }
+
+    // Reset map is last
+    const maps = [
+      { key:"m1", label:"Map 1" },
+      { key:"m2", label:"Map 2" },
+      { key:"m3", label:"Map 3" },
+      { key:"m4", label:"Map 4" },
+      { key:"m5", label:"Map 5" },
+      { key:"reset", label:"Reset Map" },
+    ];
+
+    // ---------- STATE ----------
+    const state = {
+      divider: 3.6,
+      target: 130,
+      maps: {}
+    };
+    maps.forEach(m => state.maps[m.key] = { placement:null, kills:0 });
+
+    // ---------- STORAGE (1 hour TTL) ----------
+    function saveState(){
+      const payload = { savedAt: Date.now(), state };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    }
+
+    function loadState(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const payload = JSON.parse(raw);
+        if (!payload?.savedAt || !payload?.state) return false;
+        if ((Date.now() - payload.savedAt) > TTL_MS){
+          localStorage.removeItem(STORAGE_KEY);
+          return false;
+        }
+        // hydrate
+        const s = payload.state;
+
+        if (typeof s.divider === "number") state.divider = s.divider;
+        if (typeof s.target === "number") state.target = s.target;
+
+        if (s.maps && typeof s.maps === "object"){
+          for (const m of maps){
+            const sm = s.maps[m.key];
+            if (!sm) continue;
+            state.maps[m.key].placement = (sm.placement === null || sm.placement === undefined) ? null : Number(sm.placement);
+            state.maps[m.key].kills = Math.max(0, Math.floor(Number(sm.kills || 0)));
+          }
+        }
+        return true;
+      }catch{
+        return false;
+      }
+    }
+
+    function clearSaved(){
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
+    // ---------- UI BUILD ----------
+    const mapsBody = document.getElementById("mapsBody");
+    const reqBody = document.getElementById("reqBody");
+    const countedBody = document.getElementById("countedBody");
+
+    function placementSelect(key){
+      return `
+        <select data-key="${key}" data-field="placement">
+          <option value="">None</option>
+          <option value="1">1st</option>
+          <option value="2">2nd</option>
+          <option value="3">3rd</option>
+          <option value="4">4th</option>
+          <option value="5">5th</option>
+        </select>
+      `;
+    }
+
+    function killsInput(key){
+      return `<input data-key="${key}" data-field="kills" type="number" min="0" step="1" value="0" />`;
+    }
+
+    function buildMapRows(){
+      mapsBody.innerHTML = maps.map(m => `
+        <tr>
+          <td><b>${m.label}</b></td>
+          <td>${placementSelect(m.key)}</td>
+          <td>${killsInput(m.key)}</td>
+          <td class="mono" id="bd_${m.key}" style="color:var(--muted);">—</td>
+          <td class="right mono" id="tot_${m.key}">0.00</td>
+        </tr>
+      `).join("");
+
+      // Set initial UI values from state
+      mapsBody.querySelectorAll("select").forEach(sel => {
+        const key = sel.dataset.key;
+        const p = state.maps[key].placement;
+        sel.value = p ? String(p) : "";
+      });
+      mapsBody.querySelectorAll("input[data-field='kills']").forEach(inp => {
+        const key = inp.dataset.key;
+        inp.value = state.maps[key].kills;
+      });
+
+      // Map updates: recalc on blur/change only
+      mapsBody.querySelectorAll("select").forEach(sel => {
+        sel.addEventListener("change", () => {
+          const key = sel.dataset.key;
+          state.maps[key].placement = sel.value ? Number(sel.value) : null;
+          saveState();
+          recalc();
+        });
+      });
+
+      mapsBody.querySelectorAll("input[data-field='kills']").forEach(inp => {
+        const apply = () => {
+          const key = inp.dataset.key;
+          state.maps[key].kills = Math.max(0, Math.floor(Number(inp.value || 0)));
+          inp.value = state.maps[key].kills;
+          saveState();
+          recalc();
+        };
+        inp.addEventListener("blur", apply);     // click out
+        inp.addEventListener("change", apply);   // some mobile browsers
+      });
+    }
+
+    // ---------- SCORING ----------
+    function mapScoreRaw(map){
+      const p = map.placement;
+      const k = map.kills || 0;
+      if (!p) return { kills:k, placePts:0, bonus:0, raw:0, played:false };
+      const placePts = placementPts[p] || 0;
+      const bonus = (p === 1) ? winBonus(k) : 0;
+      const raw = k + placePts + bonus;
+      return { kills:k, placePts, bonus, raw, played:true };
+    }
+
+    function totalFromRaw(raw, divider){
+      if (!(divider > 0)) return NaN;
+      return raw / divider;
+    }
+
+    // Base candidates are Map1-5; reset can replace lowest if higher
+    function computeBest5(divider){
+      const baseKeys = ["m1","m2","m3","m4","m5"];
+      const base = baseKeys.map(k => {
+        const s = mapScoreRaw(state.maps[k]);
+        const total = totalFromRaw(s.raw, divider) || 0;
+        return { key:k, label: maps.find(x=>x.key===k).label, ...s, total };
+      });
+
+      let lowestIdx = 0;
+      for (let i=1;i<base.length;i++){
+        if (base[i].total < base[lowestIdx].total) lowestIdx = i;
+      }
+      const lowest = base[lowestIdx];
+
+      const rs = mapScoreRaw(state.maps["reset"]);
+      const resetTotal = totalFromRaw(rs.raw, divider) || 0;
+      const resetObj = { key:"reset", label:"Reset Map", ...rs, total: resetTotal };
+
+      let usedReset = false;
+      if (resetTotal > lowest.total){
+        base[lowestIdx] = resetObj;
+        usedReset = true;
+      }
+
+      const totalBest5 = base.reduce((sum, x) => sum + (x.total || 0), 0);
+      const remainingMaps = base.filter(x => !x.played).length;
+
+      return { counted: base, totalBest5, usedReset, remainingMaps };
+    }
+
+    // Kills needed for ONE map to reach required RAW points, given placement
+    function minKillsForRaw(placement, requiredRaw){
+      if (requiredRaw <= 0) return 0;
+      for (let k=0; k<=250; k++){
+        const placePts = placementPts[placement] || 0;
+        const bonus = (placement === 1) ? winBonus(k) : 0;
+        const raw = k + placePts + bonus;
+        if (raw >= requiredRaw) return k;
+      }
+      return null;
+    }
+
+    // ---------- RECALC ----------
+    function recalc(){
+      const divider = state.divider;
+      const target = state.target;
+
+      // Per-map breakdown table
+      for (const m of maps){
+        const s = mapScoreRaw(state.maps[m.key]);
+        const total = totalFromRaw(s.raw, divider) || 0;
+
+        const bdEl = document.getElementById("bd_" + m.key);
+        const tEl  = document.getElementById("tot_" + m.key);
+
+        if (!state.maps[m.key].placement){
+          bdEl.textContent = "—";
+        }else{
+          bdEl.textContent = `Kills ${s.kills} + Place ${s.placePts} + Bonus ${s.bonus} = Raw ${s.raw}`;
+        }
+        tEl.textContent = fmt(total, 2);
+      }
+
+      // Best 5
+      const best = computeBest5(divider);
+      document.getElementById("best5Total").textContent = fmt(best.totalBest5, 2);
+      document.getElementById("bigTotal").textContent = fmt(best.totalBest5, 2);
+
+      const remaining = Math.max(0, target - best.totalBest5);
+      const remEl = document.getElementById("remaining");
+      remEl.textContent = fmt(remaining, 2);
+      remEl.className = "big mono " + (remaining <= 0 ? "good" : "");
+
+      // Reset pill
+      document.getElementById("resetStatus").textContent = best.usedReset ? "Reset map is counted" : "Reset not used";
+
+      // Counted table
+      countedBody.innerHTML = best.counted.map(x => {
+        const p = state.maps[x.key]?.placement;
+        const placeText = p ? (p + (p===1?"st":p===2?"nd":p===3?"rd":"th")) : "None";
+        return `
+          <tr>
+            <td><b>${x.label}</b></td>
+            <td class="mono">${x.kills}</td>
+            <td>${placeText}</td>
+            <td class="mono">${x.bonus}</td>
+            <td class="mono">${x.raw}</td>
+            <td class="right mono">${fmt(x.total, 2)}</td>
+          </tr>
+        `;
+      }).join("");
+
+      // Requirements (simple)
+      const reqPill = document.getElementById("reqPill");
+
+      if (!(divider > 0)){
+        reqPill.textContent = "Enter divider";
+        reqBody.innerHTML = [1,2,3,4,5].map(p => `
+          <tr>
+            <td><b>${p}${p===1?"st":p===2?"nd":p===3?"rd":"th"}</b></td>
+            <td class="reqKills mono">—</td>
+          </tr>
+        `).join("");
+        return;
+      }
+
+      if (remaining <= 0){
+        reqPill.textContent = "Target reached";
+        reqBody.innerHTML = [1,2,3,4,5].map(p => `
+          <tr>
+            <td><b>${p}${p===1?"st":p===2?"nd":p===3?"rd":"th"}</b></td>
+            <td class="reqKills mono">0</td>
+          </tr>
+        `).join("");
+        return;
+      }
+
+      const remainingMaps = best.remainingMaps;
+
+      if (remainingMaps === 0){
+        reqPill.textContent = "No remaining counted maps";
+        reqBody.innerHTML = [1,2,3,4,5].map(p => `
+          <tr>
+            <td><b>${p}${p===1?"st":p===2?"nd":p===3?"rd":"th"}</b></td>
+            <td class="reqKills mono">—</td>
+          </tr>
+        `).join("");
+        return;
+      }
+
+      reqPill.textContent = `${fmt(remaining,2)} points left`;
+
+      // average needed per remaining counted map
+      const neededTotalPerMap = remaining / remainingMaps; // "Total" units (after dividing by divider)
+      const neededRawPerMap = neededTotalPerMap * divider;
+
+      reqBody.innerHTML = [1,2,3,4,5].map(p => {
+        const k = minKillsForRaw(p, neededRawPerMap);
+        const killsText = (k === null) ? "250+" : String(k);
+        return `
+          <tr>
+            <td><b>${p}${p===1?"st":p===2?"nd":p===3?"rd":"th"}</b></td>
+            <td class="reqKills mono">${killsText}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    // ---------- BUTTONS ----------
+    // Update button: ONLY applies divider/target
+    document.getElementById("updateBtn").addEventListener("click", () => {
+      const div = Number(document.getElementById("divider").value || 0);
+      const tar = Number(document.getElementById("target").value || 0);
+
+      // basic guards
+      if (div > 0) state.divider = div;
+      state.target = Math.max(0, tar);
+
+      saveState();
+      recalc();
+    });
+
+    document.getElementById("resetMapsBtn").addEventListener("click", () => {
+      for (const m of maps){
+        state.maps[m.key].placement = null;
+        state.maps[m.key].kills = 0;
+      }
+
+      // reset UI
+      mapsBody.querySelectorAll("select").forEach(s => s.value = "");
+      mapsBody.querySelectorAll("input[data-field='kills']").forEach(i => i.value = 0);
+
+      saveState();
+      recalc();
+    });
+
+    // ---------- INIT ----------
+    const loaded = loadState();
+
+    // apply state to settings inputs
+    document.getElementById("divider").value = state.divider;
+    document.getElementById("target").value = state.target;
+
+    buildMapRows();
+    recalc();
+
+    // save once on load to extend TTL on activity (optional)
+    // (If you prefer "exactly 1 hour from first use", remove these 2 lines.)
+    saveState();
+  </script>
+</body>
+</html>
